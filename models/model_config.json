@@ -1,0 +1,198 @@
+{
+  "architecture": {
+    "name": "mobilenet_v3_small",
+    "num_classes": 32,
+    "head": "classifier[3] = Linear(1024, 32)",
+    "checkpoint": "mobilenetv3_small_best.pt"
+  },
+  "class_to_index": {
+    "alef": 0,
+    "be": 1,
+    "pe": 2,
+    "te": 3,
+    "se": 4,
+    "jim": 5,
+    "che": 6,
+    "he_jimi": 7,
+    "khe": 8,
+    "dal": 9,
+    "zal": 10,
+    "re": 11,
+    "ze": 12,
+    "zhe": 13,
+    "sin": 14,
+    "shin": 15,
+    "sad": 16,
+    "zad": 17,
+    "ta": 18,
+    "za": 19,
+    "ayn": 20,
+    "ghayn": 21,
+    "fe": 22,
+    "qaf": 23,
+    "kaf": 24,
+    "gaf": 25,
+    "lam": 26,
+    "mim": 27,
+    "nun": 28,
+    "vav": 29,
+    "he": 30,
+    "ye": 31
+  },
+  "label_to_unicode": {
+    "alef": {
+      "char": "ا",
+      "codepoint": "U+0627"
+    },
+    "be": {
+      "char": "ب",
+      "codepoint": "U+0628"
+    },
+    "pe": {
+      "char": "پ",
+      "codepoint": "U+067E"
+    },
+    "te": {
+      "char": "ت",
+      "codepoint": "U+062A"
+    },
+    "se": {
+      "char": "ث",
+      "codepoint": "U+062B"
+    },
+    "jim": {
+      "char": "ج",
+      "codepoint": "U+062C"
+    },
+    "che": {
+      "char": "چ",
+      "codepoint": "U+0686"
+    },
+    "he_jimi": {
+      "char": "ح",
+      "codepoint": "U+062D"
+    },
+    "khe": {
+      "char": "خ",
+      "codepoint": "U+062E"
+    },
+    "dal": {
+      "char": "د",
+      "codepoint": "U+062F"
+    },
+    "zal": {
+      "char": "ذ",
+      "codepoint": "U+0630"
+    },
+    "re": {
+      "char": "ر",
+      "codepoint": "U+0631"
+    },
+    "ze": {
+      "char": "ز",
+      "codepoint": "U+0632"
+    },
+    "zhe": {
+      "char": "ژ",
+      "codepoint": "U+0698"
+    },
+    "sin": {
+      "char": "س",
+      "codepoint": "U+0633"
+    },
+    "shin": {
+      "char": "ش",
+      "codepoint": "U+0634"
+    },
+    "sad": {
+      "char": "ص",
+      "codepoint": "U+0635"
+    },
+    "zad": {
+      "char": "ض",
+      "codepoint": "U+0636"
+    },
+    "ta": {
+      "char": "ط",
+      "codepoint": "U+0637"
+    },
+    "za": {
+      "char": "ظ",
+      "codepoint": "U+0638"
+    },
+    "ayn": {
+      "char": "ع",
+      "codepoint": "U+0639"
+    },
+    "ghayn": {
+      "char": "غ",
+      "codepoint": "U+063A"
+    },
+    "fe": {
+      "char": "ف",
+      "codepoint": "U+0641"
+    },
+    "qaf": {
+      "char": "ق",
+      "codepoint": "U+0642"
+    },
+    "kaf": {
+      "char": "ک",
+      "codepoint": "U+06A9"
+    },
+    "gaf": {
+      "char": "گ",
+      "codepoint": "U+06AF"
+    },
+    "lam": {
+      "char": "ل",
+      "codepoint": "U+0644"
+    },
+    "mim": {
+      "char": "م",
+      "codepoint": "U+0645"
+    },
+    "nun": {
+      "char": "ن",
+      "codepoint": "U+0646"
+    },
+    "vav": {
+      "char": "و",
+      "codepoint": "U+0648"
+    },
+    "he": {
+      "char": "ه",
+      "codepoint": "U+0647"
+    },
+    "ye": {
+      "char": "ی",
+      "codepoint": "U+06CC"
+    }
+  },
+  "preprocessing": {
+    "out_size": 224,
+    "margin_frac": 0.12,
+    "mean": [
+      0.48500001430511475,
+      0.4560000002384186,
+      0.4059999883174896
+    ],
+    "std": [
+      0.2290000021457672,
+      0.2240000069141388,
+      0.22499999403953552
+    ],
+    "ink": "dark on white crop",
+    "polarity": "auto-detected, crop is dark ink on white, square padding, no stretching"
+  },
+  "training": {
+    "seed": 42,
+    "best_epoch": 28,
+    "best_val_acc": 0.9874292897548711,
+    "best_val_loss": 0.10438929118876335,
+    "excluded_border": false,
+    "n_train": 7409,
+    "n_val": 1591,
+    "smoke": false
+  }
+}

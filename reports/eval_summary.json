@@ -1,0 +1,40 @@
+{
+  "checkpoint": "models/mobilenetv3_small_best.pt",
+  "checkpoint_best_epoch": 28,
+  "checkpoint_val_acc": 0.9874292897548711,
+  "overall": {
+    "n": 1589,
+    "accuracy": 0.9880427942101951,
+    "macro_f1": 0.988125442886357
+  },
+  "per_style": {
+    "printed": {
+      "n": 1589,
+      "accuracy": 0.9880427942101951,
+      "macro_f1": 0.988125442886357
+    }
+  },
+  "subsets": {
+    "touches_border": {
+      "n": 165,
+      "accuracy": 0.9939393939393939,
+      "macro_f1": 0.808578431372549
+    },
+    "not_touching_border": {
+      "n": 1424,
+      "accuracy": 0.9873595505617978,
+      "macro_f1": 0.9875165509165518
+    }
+  },
+  "timing": {
+    "n_images": 300,
+    "device": "cuda",
+    "median_model_ms": 11.536849997355603,
+    "median_end_to_end_ms": 14.768149980227463
+  },
+  "n_test_in_manifest": 1595,
+  "n_glitch_excluded": 6,
+  "mean_confidence_correct": 0.933738112449646,
+  "mean_confidence_wrong": 0.5669757723808289,
+  "note": "Split is by unique image, not by writer/font; see README limitations."
+}
