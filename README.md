@@ -1,6 +1,6 @@
 # Persian Character Recognition System
 
-A deep-learning system that recognizes **one isolated Persian letter** in an image and tells you which of the 32 letters of the Persian alphabet it is. It has two separate models, one for **printed / digital** letters and one for **handwritten** letters. Both are MobileNetV3 Small networks built with PyTorch, and a Streamlit web app lets you pick the mode, upload an image and see the result.
+A deep-learning system that recognizes **one isolated Persian letter** in an image and tells you which of the 32 letters of the Persian alphabet it is. It has three MobileNetV3 Small models built with PyTorch: one for **printed / digital** letters, one for **handwritten** letters, and one **combined** model that handles both. A Streamlit web app lets you pick the mode, upload an image and see the result.
 
 ## Table of Contents
 
@@ -34,9 +34,11 @@ A deep-learning system that recognizes **one isolated Persian letter** in an ima
 | Printed / digital Persian letters | **Supported** (printed model) |
 | Handwritten Persian letters | **Supported** (separate handwritten model), as isolated single letters. Evaluated only on held-out forms of the training dataset, not on other people's handwriting or photos. |
 | Words, sentences, full lines | Not supported (one isolated letter per image) |
-| Automatic detection of printed vs handwritten | Not implemented. You choose the mode in the app. |
-| Model training and evaluation | Done for both models (see [Evaluation Results](#evaluation-results)) |
-| Streamlit web app with a mode selector | Implemented in `app.py` |
+| Printed and handwritten letters with one model | **Supported** (combined model), evaluated on the same held-out test sets as the two separate models |
+| Automatic detection of printed vs handwritten | Not implemented. You choose the input type in the app (or use the combined model). |
+| Model training and evaluation | Done for all three models (see [Evaluation Results](#evaluation-results)) |
+| Streamlit web app with an input-type selector | Implemented in `app.py` (redesigned interface, see [Features](#features)) |
+| Rotated letters | Measured (see [Rotation robustness](#rotation-robustness)). The three models trained so far are reliable only up to about 10-15 degrees of tilt. An optional rotation-aware training setting for tilts up to 30 degrees is implemented, but a model trained with it has **not been evaluated yet**. Sideways or upside-down letters are not supported. |
 
 Each model always answers with one of its 32 known letters, even for images it was not made for (for example handwriting sent to the printed model). See [Limitations](#limitations).
 
@@ -44,16 +46,24 @@ Each model always answers with one of its 32 known letters, even for images it w
 
 Everything listed here is implemented in the current code.
 
-- A **recognition mode** selector in the app sidebar: Printed Persian Characters or Handwritten Persian Characters. Each mode loads its own trained model.
+- A redesigned single-page interface: header, a hero section, an upload workspace with a tips panel, a results section, a recognition history and a short explanation of the processing pipeline
+- An **input type** selector under the upload box: Handwritten, Printed or Combined (Printed + Handwritten). Each type loads its own trained model.
 - Upload an image (PNG, JPG, JPEG or BMP) and preview it
 - Prediction shown as the Persian letter (right-to-left), its Latin name (for example `alef`) and its Unicode code point (for example `U+0627`)
 - Confidence score as a percentage, plus the top 3 predictions
 - A view of the cropped, normalized image that is actually given to the model
 - Automatic preprocessing (shared by both modes): converts to grayscale, detects dark-on-light or light-on-dark, crops to the character, pads to a square without stretching, resizes to 224x224
-- Clear error messages for unreadable files, too-small or too-large images, and blank images, and a clear message if the handwritten model file is missing (printed mode keeps working)
+- Clear error messages for unreadable files, too-small or too-large images, and blank images, and a clear message if the handwritten model file is missing (the other input types keep working)
 - Warnings for low confidence (below 70%, a simple untuned threshold) and for characters touching the image border
+- After you click **Recognize character**, the page scrolls smoothly to the result, which fades in
+- A **recognition history** of this browser session (up to 8 results). It is kept in memory only: nothing is written to disk and it clears when the page is reloaded.
+- A model status line that shows whether the checkpoint file of the selected input type exists
+- Upload size limited to 8 MB (set in `.streamlit/config.toml`)
 - A "Reset" button to clear the result and upload another image
-- Command-line prediction for both models (`src/predict.py`, `src/predict_hw.py`)
+- Command-line prediction for all three models (`src/predict.py`, `src/predict_hw.py`, `src/predict_combined.py`)
+- Configurable training-time data augmentation for the combined model (`src/augment_cfg.py`), applied on the fly with nothing saved to disk, and a preview tool to check its effect (`src/preview_augmentation.py`)
+- An optional rotation-aware augmentation that imitates a tilted photo (rotate, then re-crop the way the app does), off by default
+- A measurement-only rotation test (`src/evaluate_rotation.py`) that reports accuracy at any list of rotation angles for any of the three models
 
 ## Technology Stack
 
@@ -69,7 +79,8 @@ Everything listed here is implemented in the current code.
 
 ```
 app.py                         Streamlit web application (run this)
-.streamlit/config.toml         Optional Streamlit theme setting
+.streamlit/config.toml         Streamlit theme colors and the 8 MB upload limit
+.gitignore                     Files Git should not track (virtual environment, datasets, caches, ...)
 src/
   labels.py                    The 32 letters: index, Persian character, Latin name (shared by both models)
   preprocess.py                Validation, binarization, cropping, resizing (shared by both models)
@@ -88,13 +99,23 @@ src/
   predict_hw.py                Loads the handwritten model and predicts one image
   inspect_handwritten.py       Read-only dataset check (counts, sizes, contact sheet)
   inspect_forms_hw.py          Read-only check of the form numbers in the file names
+  --- combined model (printed + handwritten) ---
+  augment_cfg.py               Configurable training augmentation (rotation, zoom, shift, optional large rotation, ...)
+  preview_augmentation.py      Saves before/after images and checks that dots and strokes survive
+  train_combined.py            Trains one model on both training sets
+  evaluate_combined.py         Evaluates it on both test sets, separately
+  predict_combined.py          Loads the combined model and predicts one image
+  --- rotation test (works with all three models) ---
+  evaluate_rotation.py         Measures accuracy at different rotation angles (trains nothing)
   (other helper scripts)       inspect_dataset*.py, review_drops.py, flag_artifacts.py, ...
 models/
   mobilenetv3_small_best.pt                  Printed model (needed for printed mode)
   handwritten_mobilenetv3_small_best.pt      Handwritten model (needed for handwritten mode)
+  combined_mobilenetv3_small_best.pt         Combined model (needed for combined mode)
   model_config.json                          Readable summary of the printed model (not loaded by the app)
 reports/                       Evaluation outputs, confusion matrices, training curves
-                               (hw_* files belong to the handwritten model)
+                               (hw_* files belong to the handwritten model, comb_* files to the combined
+                               model, aug_preview_* are the augmentation previews, rotation_* the rotation tests)
 dataset/
   manifest.csv                 Printed dataset: one row per unique image, with its split
   manifest_hw.csv              Handwritten dataset: one row per unique image, with its split and form
@@ -140,6 +161,36 @@ Both models use the same architecture and the same preprocessing:
 - **Handwritten model:** trained from ImageNet weights, **not** from the printed model. Its best epoch was epoch 19 (validation accuracy 98.44%); training stopped early at epoch 23.
 - **Prediction:** the model gives 32 scores; softmax turns them into probabilities. The top probability is the confidence shown in the app.
 - The class mapping is stored inside each checkpoint and is checked against `src/labels.py` when a model loads. If they differ, loading stops with an error.
+
+### Combined model
+
+- One MobileNetV3 Small trained on printed **and** handwritten images together: 29,807 training images (7,409 printed + 22,398 handwritten, so about 25% printed) and 4,791 validation images (1,591 printed + 3,200 handwritten).
+- It uses the **existing splits** of both datasets (printed split by image, handwritten split by form) instead of a new random split. The two test sets are therefore exactly the ones the separate models were tested on, and no test image was used for training.
+- Same architecture and recipe as above, trained from ImageNet weights with the augmentation described below. It ran the full 28 epochs; the best epoch was 24. Saved to `models\combined_mobilenetv3_small_best.pt`. The training script also checks, by file hash, that the printed and handwritten checkpoints were not changed.
+
+### Data augmentation
+
+The combined model is trained with the configurable augmentation in `src/augment_cfg.py`. It is applied **only to training images, on the fly on the GPU**; no augmented files are saved, and validation and test images are never augmented. There are no horizontal flips, because a flip would change which letter an image shows.
+
+| Transform | Default setting |
+|---|---|
+| Rotation | random, -10 to +10 degrees |
+| Zoom | random, 0.90 to 1.10 |
+| Shift | up to 5% of the image width and height |
+| Shear (slant) | small, 0.08 |
+| Extra conservative zoom-in ("crop") | 15% of samples, up to 6% extra zoom |
+| Thicker strokes / thinner strokes | 20% / 15% of samples |
+| Mild blur | 30% of samples |
+| Light pixel noise | 30% of samples |
+| Large rotation with re-crop (**off by default**) | `--aug-p-rotate` = share of samples (default 0), angle uniform in plus/minus `--aug-rotate-full-deg` (default 45) |
+| Sideways / upside-down (**off by default**) | `--aug-p-rot90` = share of the rotated samples turned by 90, 180 or 270 degrees (default 0) |
+
+- A safety check puts a sample back to its original geometry if the transform would push ink into the image border (a sign that a stroke or dot would be cut off).
+- **Why a separate large-rotation option exists:** the ordinary rotation setting only goes up to 10 degrees, and the border safety check above would cancel most larger rotations. Rotating the crop inside its frame is also not what happens in the app, which rotates the picture first and then crops to the character. The large-rotation option therefore rotates the crop on an enlarged canvas, finds the character's bounding box again and re-pads it with the same 12% margin as `preprocess.py`. On synthetic test letters this matched the app's real pipeline closely (average overlap about 0.82 to 0.91, against 0.28 to 0.43 for plain in-frame rotation). That was a check on synthetic images only; the effect on real accuracy has to be measured with `evaluate_rotation.py`.
+- Every value can be changed from the command line, for example `--aug-rotate-deg 8` or `--aug-p-thin 0` (see `python src\train_combined.py --help`).
+- **Brightness, contrast and background variation are not used.** Every image is converted to a black-and-white crop (Otsu threshold) before it reaches the model, so such changes would have almost no effect on the model input.
+- `python src\preview_augmentation.py` saves before/after images (`reports\aug_preview_*.png`). On 300 printed and 300 handwritten training characters with 5 random augmentations each, the geometric step was skipped for 5.7% (printed) and 7.0% (handwritten) of samples because ink reached the border; 2.7% (printed) and 0.3% (handwritten) of augmented samples ended up with fewer separate parts than the original, which could mean a lost or merged dot.
+- The printed and handwritten models were trained with the older fixed augmentation in `src/augment.py` (similar rotation, zoom 0.85 to 1.15, shift about 4%, stroke thickness, blur and noise). The new settings were **not** compared against the old ones on their own, so the results cannot say whether the augmentation itself helped.
 
 ## Installation Requirements
 
@@ -192,6 +243,7 @@ The app needs one trained model file for each mode:
 |---|---|
 | Printed | `models\mobilenetv3_small_best.pt` |
 | Handwritten | `models\handwritten_mobilenetv3_small_best.pt` |
+| Combined | `models\combined_mobilenetv3_small_best.pt` |
 
 - The class names and the Persian letter for each class are stored **inside** each file. When a model loads, the code checks them against `src/labels.py`, so both must be present and must match.
 - `models\model_config.json` is only a readable summary of the printed model. The app does not load it.
@@ -211,35 +263,36 @@ This starts a local web server and normally opens your browser at http://localho
 
 ## How to Make Predictions
 
-1. In the **sidebar**, choose the **recognition mode** that matches your image: *Printed Persian Characters* or *Handwritten Persian Characters*. (If the sidebar is hidden, open it with the small arrow at the top left.)
-2. Click **Browse files** (or drag an image in) and choose a PNG, JPG, JPEG or BMP file with **one** letter.
-3. Check the preview.
-4. Click **Recognize Character**.
-5. Read the result:
+1. Click **Browse files** (or drag an image in) and choose a PNG, JPG, JPEG or BMP file (up to 8 MB) with **one** letter. A small preview appears.
+2. Under **Input type**, choose the type that matches your image: *Handwritten*, *Printed*, or *Combined* if you are not sure which kind it is. The default is Printed.
+3. Click **Recognize character**. The page scrolls down to the result.
+4. Read the result:
    - **Large letter:** the predicted Persian character.
    - **Label chip:** its Latin name, for example `be` or `shin`.
    - **Code chip:** its Unicode code point.
    - **Confidence bar:** the model's probability for its top answer, as a percentage. The bar turns amber below 70%.
-6. Open **Top 3 predictions and model input** to see the next best guesses and the cropped image the model used.
-7. Click **Reset** to clear everything and upload another image. Switching mode also clears the previous result.
+   - **Top 3 predictions:** the next best guesses, and the cropped image the model actually used.
+5. Earlier results of this session are listed under **Your recent results**. The list is not saved and clears when you reload the page.
+6. Click **Reset** to clear everything and upload another image. Switching the input type also clears the previous result.
 
 **How to read the confidence:** it is the model's own probability, not a measured accuracy. Wrong answers can still show high confidence (in the handwritten evaluation, many mistakes were between look-alike letters), and unsuitable images can also get a confident answer. Use it as a hint, not as proof.
 
-**Best input:** one clear letter, dark on a plain light background, centered, not touching the edge, at least 16x16 pixels. For handwriting, write one letter with a dark pen on plain paper and crop the photo tightly around it.
+**Best input:** one clear letter, dark on a plain light background, centered, not touching the edge, at least 16x16 pixels, and roughly upright (see [Rotation robustness](#rotation-robustness)). For handwriting, write one letter with a dark pen on plain paper and crop the photo tightly around it.
 
 ## Example Usage
 
 Using the web app:
 
 1. Run `streamlit run app.py`.
-2. In the sidebar choose *Printed Persian Characters* and upload a screenshot of a single printed letter, for example ب. The app shows the letter ب, the label `be`, the code `U+0628` and a confidence percentage.
-3. Switch to *Handwritten Persian Characters* and upload a cropped image of one handwritten letter.
+2. Under *Input type* keep *Printed* and upload a screenshot of a single printed letter, for example ب. The app shows the letter ب, the label `be`, the code `U+0628` and a confidence percentage.
+3. Switch the input type to *Handwritten* and upload a cropped image of one handwritten letter.
 
 Using the command line (from the project root, with the virtual environment active):
 
 ```
 python src\predict.py path\to\printed_letter.png
 python src\predict_hw.py path\to\handwritten_letter.png
+python src\predict_combined.py path\to\any_letter.png
 ```
 
 Each prints the prediction for your own image (several paths can be given). To check that the printed model loads and works on test images from the printed dataset (this needs the printed dataset images on your computer):
@@ -279,6 +332,34 @@ python src\evaluate_hw.py
 - `train_hw.py --smoke` is a 1-2 minute pipeline check; it saves no model. The full run saves `models\handwritten_mobilenetv3_small_best.pt` and refuses to overwrite an existing one unless you add `--overwrite`. It cannot write to the printed model's path.
 - `evaluate_hw.py` writes `reports\hw_eval_*` files.
 
+**Combined model** (needs both datasets prepared first, i.e. `dataset\manifest.csv` and `dataset\manifest_hw.csv`; it reuses the cached image arrays from the earlier training runs when they exist):
+
+```
+python src\preview_augmentation.py
+python src\train_combined.py --smoke
+python src\train_combined.py
+python src\evaluate_combined.py
+```
+
+- `preview_augmentation.py` trains nothing; it only shows what the augmentation does.
+- `train_combined.py --smoke` is a short pipeline check that saves no model. The full run saves `models\combined_mobilenetv3_small_best.pt`, refuses to overwrite an existing one unless you add `--overwrite`, and cannot write to the printed or handwritten model files. It needs about 3.5 GB of RAM while the two datasets are joined. `--printed-repeat 2` would repeat the printed images to give them more weight (the default is the natural mix, about 25% printed).
+- At the end of training the script prints whether the printed and handwritten model files are unchanged. To check by hand, run `Get-FileHash models\mobilenetv3_small_best.pt -Algorithm SHA256` (and the same for the handwritten file) before and after; the values must be identical.
+- `evaluate_combined.py` reports the printed and handwritten test sets separately and prints the separate models' stored results beside them. Run it once, after training.
+
+**Rotation test and rotation-aware training** (optional; train and evaluate only when you want to, and back up `reports\comb_*` first, because training and evaluation reuse those file names):
+
+```
+python src\evaluate_rotation.py
+python src\evaluate_rotation.py --model printed
+python src\evaluate_rotation.py --model handwritten --angles -30 -15 0 15 30 90 180 270
+python src\train_combined.py --aug-p-rotate 0.6 --aug-rotate-full-deg 30 --out models\combined_rot30_mobilenetv3_small_best.pt
+python src\evaluate_rotation.py --ckpt models\combined_rot30_mobilenetv3_small_best.pt --tag rot30
+python src\evaluate_combined.py --ckpt models\combined_rot30_mobilenetv3_small_best.pt
+```
+
+- `evaluate_rotation.py` trains nothing. It takes 25 test images per letter from each dataset (800 printed and 800 handwritten), rotates each original image counter-clockwise by every angle on an enlarged canvas filled with its background color, runs the normal preprocessing and the model, and writes `reports\rotation_<name>.csv` and `.png`. Use the same angles and seed before and after any change so the results can be compared.
+- The rotation-aware training line writes to a **new** file name, so the existing combined model is not touched. After training, compare the new model's rotation table with the baseline below, and check with `evaluate_combined.py` that the accuracy on upright images did not drop.
+
 **Printed model** (see the first lines of each script for details; the printed dataset folders are `01_alef` ... `32_ye`):
 
 ```
@@ -291,6 +372,51 @@ python src\evaluate.py
 ## Evaluation Results
 
 All numbers below come from the evaluation files in `reports/` and the training logs. Both evaluations use a held-out test split that was not used for training or for choosing the best epoch.
+
+### Combined model (printed + handwritten)
+
+Evaluated once on the same two test sets as the separate models (`reports/comb_eval_*`):
+
+| Test set | Images | Combined model: accuracy / macro F1 | Separate model: accuracy / macro F1 |
+|---|---|---|---|
+| Printed test split | 1,589 | 98.62% / 0.9864 | 98.80% / 0.9881 |
+| Handwritten test forms 2 and 9 | 6,399 | 98.61% / 0.9861 | 98.59% / 0.9859 |
+| Both together | 7,988 | 98.61% / 0.9861 | not applicable |
+
+- Best validation accuracy (epoch 24): 98.58% overall, 98.68% on the printed validation set, 98.53% on the handwritten validation set.
+- **What this means:** one combined model performed about as well as the two specialist models on these test sets. The printed difference is roughly 3 images out of 1,589 (slightly lower) and the handwritten difference is roughly 1 image out of 6,399 (slightly higher). Both are within normal sampling noise, so these results show neither an improvement nor a loss from combining the data or from the new augmentation.
+- Most frequent handwritten mistakes (true -> predicted): `be` -> `pe` (8), `jim` -> `he_jimi` (8), `che` -> `jim` (7), `khe` -> `he_jimi` (5), `se` -> `te` (5), `ayn` -> `ghayn` (4), `zhe` -> `ze` (4), `jim` -> `che` (4). These are the same dot-related look-alike pairs as in the handwritten model. Printed mistakes were rare, at most 2 per pair (`se` -> `te`, `he_jimi` -> `mim`).
+- The same caveats apply: the handwritten test forms come from the same collection as the training forms, the printed split is by image and not by font, and neither test set contains other people's handwriting, other fonts or phone photos.
+
+### Rotation robustness
+
+Measured with `src\evaluate_rotation.py` before any rotation-aware training (25 test images per letter per dataset, seed 0; angles are counter-clockwise; the pipeline rejected no images). Accuracy in percent:
+
+**Combined model**
+
+| Angle | -45 | -30 | -20 | -10 | 0 | 10 | 20 | 30 | 45 | 90 | 180 | 270 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Handwritten | 49.6 | 81.6 | 95.2 | 98.9 | 98.6 | 98.1 | 95.2 | 85.6 | 49.8 | 12.0 | 23.8 | 13.2 |
+| Printed | 44.0 | 74.6 | 90.2 | 97.8 | 98.8 | 96.8 | 88.5 | 72.6 | 42.4 | 6.6 | 11.0 | 6.0 |
+
+**Printed model**
+
+| Angle | -45 | -30 | -20 | -10 | 0 | 10 | 20 | 30 | 45 | 90 | 180 | 270 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Handwritten | 38.5 | 65.1 | 76.4 | 83.2 | 86.5 | 84.0 | 77.6 | 61.3 | 28.4 | 9.1 | 14.0 | 13.1 |
+| Printed | 51.6 | 80.5 | 92.5 | 99.1 | 99.2 | 98.0 | 92.1 | 81.8 | 42.8 | 7.6 | 12.1 | 9.5 |
+
+**Handwritten model**
+
+| Angle | -30 | -15 | 0 | 15 | 30 | 90 | 180 | 270 |
+|---|---|---|---|---|---|---|---|---|
+| Handwritten | 82.6 | 96.8 | 98.5 | 97.2 | 84.6 | 14.2 | 27.0 | 16.6 |
+| Printed | 52.0 | 61.6 | 63.4 | 59.4 | 47.5 | 6.9 | 8.4 | 4.4 |
+
+- **What this means:** all three models are reliable only up to about 10 to 15 degrees of tilt (the training augmentation rotated by at most 10 degrees). At 20 degrees accuracy has already dropped by several points, at 30 degrees it is roughly 73% to 86% for the combined model, at 45 degrees it is below 52%, and for sideways or upside-down images (90, 180, 270 degrees) it is close to chance (a random guess among 32 letters would be about 3%).
+- The printed and handwritten rows of the specialist models at 0 degrees (86.5% for the printed model on handwriting, 63.4% for the handwritten model on printed letters) repeat the "pick the right mode" limitation. On tilted handwriting the combined model is clearly better than the printed model (for example 85.6% against 61.3% at 30 degrees). On tilted printed letters it is a few points lower than the printed model (for example 72.6% against 81.8% at 30 degrees, and 96.8% against 98.0% at 10 degrees).
+- This is a measurement on rotated copies of the datasets' own test images. Real photos have other kinds of distortion (perspective, shadows), which were not measured.
+- Results for a model trained with `--aug-p-rotate` are **not** reported here yet.
 
 ### Handwritten model
 
@@ -331,7 +457,8 @@ Per-class scores, confusion matrices and misclassified examples for both models 
 ## Limitations
 
 - **Pick the right mode.** The printed model was trained on printed letters only and the handwritten model on handwritten letters only. Neither is expected to work well on the other kind of image, and there is no automatic detection.
-- **One isolated letter per image.** Neither model reads words or sentences.
+- **One isolated letter per image.** None of the models reads words or sentences.
+- **Combined model:** it removes the need to choose between printed and handwritten, but its test results come only from the two datasets above. It has the same dot-related look-alike mistakes as the handwritten model, and its behavior on other people's handwriting, other fonts and photos was not tested.
 - **Supported files:** PNG, JPG, JPEG, BMP. Image sides must be between 16 and 8000 pixels. Blank images are rejected with an error.
 - **Always an answer.** Each model always picks one of its 32 classes, including for blank-looking, noisy, rotated or multi-letter images and for symbols that are not Persian letters.
 - **Confidence is not proof.** It is the softmax probability of the top class. The 70% warning threshold is a simple cut-off that was not tuned or validated.
@@ -340,7 +467,7 @@ Per-class scores, confusion matrices and misclassified examples for both models 
   - Look-alike letters that differ only by dots (for example ب پ ت ث, ج چ ح خ, ر ز ژ, د ذ) are the most common mistakes, and merged or missing dots make them harder.
   - Thresholding during preprocessing makes strokes a bit heavier and can join nearby dots.
 - **Printed model:** the test split is by image, not by font, so the test score is likely optimistic for unseen fonts.
-- **Rotation and blur** were not evaluated systematically for either model.
+- **Rotation:** measured, see [Rotation robustness](#rotation-robustness). Tilts beyond about 15 degrees reduce accuracy noticeably, and sideways or upside-down letters are not recognized. Blur was not evaluated systematically.
 - **Letter shapes:** both models recognize the 32 isolated letters, not the connected forms letters take inside words.
 
 ## Troubleshooting
@@ -348,10 +475,15 @@ Per-class scores, confusion matrices and misclassified examples for both models 
 | Problem | Likely cause and fix |
 |---|---|
 | `'streamlit' is not recognized` | The virtual environment is not active or Streamlit is not installed. Run `.venv\Scripts\activate`, then `pip install streamlit`. Or use `python -m streamlit run app.py`. |
+| The page looks unstyled or the fonts look different | The interface loads its fonts from Google Fonts, so they need an internet connection. Offline, the app falls back to system fonts and still works. |
+| The styling did not change after copying a new `app.py` | Hard-refresh the browser page (Ctrl+F5) and restart `streamlit run app.py`. |
 | `ModuleNotFoundError: No module named 'torch'` (or `cv2`, `PIL`, `pandas`) | A package is missing. Activate `.venv` and install it: `pip install torch torchvision`, `pip install opencv-python`, `pip install pillow`, `pip install pandas`. |
 | PowerShell says running scripts is disabled when activating `.venv` | Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, or use Command Prompt (`cmd`) instead. |
 | Printed mode shows "Model checkpoint not found" | `models\mobilenetv3_small_best.pt` is missing. See [Model Checkpoint Setup](#model-checkpoint-setup). |
 | Handwritten mode says the handwritten model has not been trained | `models\handwritten_mobilenetv3_small_best.pt` is missing. Get the file from the teammate who trained it, or train it (see [Training and Evaluation Commands](#training-and-evaluation-commands)). Printed mode still works. |
+| Combined mode says the combined model has not been trained | `models\combined_mobilenetv3_small_best.pt` is missing. Get the file from the teammate who trained it, or train it with `python src\train_combined.py`. The other modes still work. |
+| `train_combined.py` says the printed manifest has no `glitch` column | Run `python src\mark_glitch.py` first (it adds the column), as for the printed model. |
+| `ModuleNotFoundError: No module named 'predict_combined'` (or `augment_cfg`) | The combined-model files are missing from `src\`. Make sure `augment_cfg.py`, `preview_augmentation.py`, `train_combined.py`, `evaluate_combined.py` and `predict_combined.py` are in the `src` folder. |
 | "Could not load the model: Class mapping in checkpoint differs from src/labels.py" | `src/labels.py` was changed, or the model file is from a different version. Use the model file and `labels.py` from the same version. |
 | `ModuleNotFoundError: No module named 'predict_hw'` | The handwritten files are missing from `src\`. Make sure `labels_hw.py`, `prepare_data_hw.py`, `train_hw.py`, `evaluate_hw.py` and `predict_hw.py` are all in the `src` folder. |
 | `streamlit run app.py` says it cannot find `app.py` | You are in the wrong folder. Use `cd` to go to the project root, the folder that contains `app.py`. |
@@ -369,15 +501,8 @@ Per-class scores, confusion matrices and misclassified examples for both models 
 - **Commit:** the source code (`app.py`, `src/`, `tests/`), `README.md`, the two small manifests (`dataset/manifest.csv`, `dataset/manifest_hw.csv`), the model files in `models/`, and the small files in `reports/`. Check each model file's size first; GitHub rejects single files over 100 MB, and these models are expected to be small.
 - **Do not commit the image datasets or `dataset/processed/`.** The printed cache alone is about 468 MB, and the handwritten cache adds more. Check each dataset's license and your project's privacy rules before sharing any images.
 - **Check the manifests:** they contain absolute paths from the author's computer, including a Windows user folder name. Decide whether to share them as they are or replace the paths with relative ones.
-- Add a `.gitignore` before the first commit. A suggested starting point:
-
-  ```
-  .venv/
-  __pycache__/
-  *.pyc
-  dataset/processed/
-  dataset/raw/
-  ```
+- A `.gitignore` is included in the project root (make sure the file name keeps its leading dot when you copy it). It ignores the virtual environment, `__pycache__`, `dataset/raw/`, `dataset/processed/`, smoke-test models and reports, Streamlit secrets and `.env` files, logs, zip files, and editor and operating-system files. It deliberately does **not** ignore the manifests, the final model files in `models/` or the final reports.
+- If a model file ever grows beyond 100 MB, use Git LFS or add it to `.gitignore`.
 
 - Never commit passwords, API keys or personal files.
 
@@ -385,16 +510,29 @@ Per-class scores, confusion matrices and misclassified examples for both models 
 
 These are ideas, **not** completed features.
 
-- Test the handwritten model on new handwriting (other people, pens, paper, phone photos) and report the results honestly
+- Test the handwritten and combined models on new handwriting (other people, pens, paper, phone photos) and other printed fonts, and report the results honestly
+- Compare augmentation settings one at a time to find out which ones actually help
 - Review the confidently wrong test samples for mislabeled data and clean the handwritten dataset
 - Handle dots better for handwriting (for example a gentler threshold, or a larger input for the dotted look-alike letters)
 - Stroke-thickness augmentation, and a split by known writer if writer information becomes available
 - Automatic detection of printed vs handwritten input
-- Better preprocessing for noisy backgrounds, photos and rotated letters
+- Evaluate a model trained with `--aug-p-rotate` (for example 30 degrees) and check that upright accuracy does not drop
+- Automatic orientation correction for sideways or upside-down letters (for example a small model that predicts 0, 90, 180 or 270 degrees)
+- Better preprocessing for noisy backgrounds and photos
 - Tuning the low-confidence warning, or adding a real "not a valid character" check
 - Recognizing several characters or whole words
 - A `requirements.txt` with pinned versions
 
+## Contributors
+
+| Name | Role |
+|---|---|
+| Adrian Paul Sande | Model Training and Evaluation |
+| Marc Louie Marimon | Data Preprocessing and Analysis |
+| Alec Lacap | Backend Development and Model Integration |
+| Ella Marie Tiozon | Frontend Development and User Interface |
+| Adrienne Lalimarmo | Documentation and Presentation |
+| *TODO: name* | *TODO: role* |
 
 ## License
 
