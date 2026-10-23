@@ -1,0 +1,17 @@
+dataset,angle,n,rejected,accuracy
+printed,-30.0,800,0,0.52
+printed,-15.0,800,0,0.61625
+printed,0.0,800,0,0.63375
+printed,15.0,800,0,0.59375
+printed,30.0,800,0,0.475
+printed,90.0,800,0,0.06875
+printed,180.0,800,0,0.08375
+printed,270.0,800,0,0.04375
+handwritten,-30.0,800,0,0.82625
+handwritten,-15.0,800,0,0.9675
+handwritten,0.0,800,0,0.985
+handwritten,15.0,800,0,0.9725
+handwritten,30.0,800,0,0.84625
+handwritten,90.0,800,0,0.1425
+handwritten,180.0,800,0,0.27
+handwritten,270.0,800,0,0.16625

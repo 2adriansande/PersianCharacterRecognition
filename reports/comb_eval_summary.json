@@ -1,0 +1,54 @@
+{
+  "checkpoint": "models/combined_mobilenetv3_small_best.pt",
+  "checkpoint_best_epoch": 24,
+  "checkpoint_val_acc": 0.9858067209350866,
+  "results": {
+    "overall": {
+      "n": 7988,
+      "accuracy": 0.9861041562343515,
+      "macro_f1": 0.9861437999860114
+    },
+    "handwritten": {
+      "n": 6399,
+      "accuracy": 0.9860915768088764,
+      "macro_f1": 0.9860946856677419
+    },
+    "printed": {
+      "n": 1589,
+      "accuracy": 0.9861548143486469,
+      "macro_f1": 0.9864346705851119
+    }
+  },
+  "separate_models_for_reference": {
+    "printed": {
+      "accuracy": 0.9880427942101951,
+      "macro_f1": 0.988125442886357,
+      "n": 1589
+    },
+    "handwritten": {
+      "accuracy": 0.9859353023909986,
+      "macro_f1": 0.9859307316351256,
+      "n": 6399
+    }
+  },
+  "augmentation": {
+    "strength": 1.0,
+    "p_geometric": 1.0,
+    "rotate_deg": 10.0,
+    "scale_min": 0.9,
+    "scale_max": 1.1,
+    "shift_frac": 0.05,
+    "shear": 0.08,
+    "p_crop": 0.15,
+    "crop_max": 0.06,
+    "edge_px": 3,
+    "p_thicken": 0.2,
+    "p_thin": 0.15,
+    "p_blur": 0.3,
+    "p_noise": 0.3,
+    "noise_std": 0.04
+  },
+  "mean_confidence_correct": 0.9462985992431641,
+  "mean_confidence_wrong": 0.7212997078895569,
+  "note": "Same test images as the printed and handwritten models; handwritten test = forms held out by form."
+}

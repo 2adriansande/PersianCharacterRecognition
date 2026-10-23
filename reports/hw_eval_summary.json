@@ -1,0 +1,29 @@
+{
+  "checkpoint": "models/handwritten_mobilenetv3_small_best.pt",
+  "checkpoint_best_epoch": 19,
+  "checkpoint_val_acc": 0.984375,
+  "overall": {
+    "n": 6399,
+    "accuracy": 0.9859353023909986,
+    "macro_f1": 0.9859307316351256
+  },
+  "per_form": {
+    "2": {
+      "n": 3200,
+      "accuracy": 0.9825,
+      "macro_f1": 0.9824427612643807
+    },
+    "9": {
+      "n": 3199,
+      "accuracy": 0.989371678649578,
+      "macro_f1": 0.9893799452546855
+    }
+  },
+  "test_forms": [
+    2,
+    9
+  ],
+  "mean_confidence_correct": 0.9454784393310547,
+  "mean_confidence_wrong": 0.7277100682258606,
+  "note": "Split is by form (writing session). Whether two forms share a writer is unknown."
+}

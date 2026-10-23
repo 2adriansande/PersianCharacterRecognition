@@ -1,0 +1,41 @@
+# --- Python environment and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+*.egg-info/
+
+# --- Datasets and caches (large, and their licenses/privacy must be checked before sharing images)
+# The small manifests (dataset/manifest.csv, dataset/manifest_hw.csv) are NOT ignored on purpose.
+dataset/raw/
+dataset/processed/
+
+# --- Trained models
+# The final checkpoints in models/ are kept (they are small). If one ever grows past 100 MB, use Git LFS
+# instead. Throwaway runs and smoke tests are ignored:
+models/*smoke*
+models/*_tmp*.pt
+
+# --- Generated reports: keep the small final ones, skip throwaway smoke-test output
+reports/*smoke*
+
+# --- Streamlit secrets (never commit passwords or API keys)
+.streamlit/secrets.toml
+.env
+.env.*
+
+# --- Logs, archives and temporary files
+*.log
+*.zip
+*.tmp
+*.bak
+
+# --- Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

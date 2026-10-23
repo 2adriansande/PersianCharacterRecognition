@@ -1,6 +1,6 @@
 # Persian Character Recognition System
 
-A deep-learning system that recognizes **one isolated Persian letter** in an image and tells you which of the 32 letters of the Persian alphabet it is. It uses a MobileNetV3 Small model built with PyTorch, and a Streamlit web app for uploading images and seeing the result.
+A deep-learning system that recognizes **one isolated Persian letter** in an image and tells you which of the 32 letters of the Persian alphabet it is. It has two separate models, one for **printed / digital** letters and one for **handwritten** letters. Both are MobileNetV3 Small networks built with PyTorch, and a Streamlit web app lets you pick the mode, upload an image and see the result.
 
 ## Table of Contents
 
@@ -8,7 +8,7 @@ A deep-learning system that recognizes **one isolated Persian letter** in an ima
 2. [Features](#features)
 3. [Technology Stack](#technology-stack)
 4. [Project Structure](#project-structure)
-5. [Dataset](#dataset)
+5. [Datasets](#datasets)
 6. [Model Architecture](#model-architecture)
 7. [Installation Requirements](#installation-requirements)
 8. [Installation Steps](#installation-steps)
@@ -16,13 +16,14 @@ A deep-learning system that recognizes **one isolated Persian letter** in an ima
 10. [How to Run the Application](#how-to-run-the-application)
 11. [How to Make Predictions](#how-to-make-predictions)
 12. [Example Usage](#example-usage)
-13. [Evaluation Results](#evaluation-results)
-14. [Limitations](#limitations)
-15. [Troubleshooting](#troubleshooting)
-16. [Preparing the Repository for GitHub](#preparing-the-repository-for-github)
-17. [Future Improvements](#future-improvements)
-18. [Contributors](#contributors)
-19. [License](#license)
+13. [Training and Evaluation Commands](#training-and-evaluation-commands)
+14. [Evaluation Results](#evaluation-results)
+15. [Limitations](#limitations)
+16. [Troubleshooting](#troubleshooting)
+17. [Preparing the Repository for GitHub](#preparing-the-repository-for-github)
+18. [Future Improvements](#future-improvements)
+19. [Contributors](#contributors)
+20. [License](#license)
 
 ---
 
@@ -30,27 +31,29 @@ A deep-learning system that recognizes **one isolated Persian letter** in an ima
 
 | Area | Status |
 |---|---|
-| Printed / digital Persian characters | **Supported** |
-| Handwritten Persian characters | **Not supported.** The model was not trained on handwriting. |
+| Printed / digital Persian letters | **Supported** (printed model) |
+| Handwritten Persian letters | **Supported** (separate handwritten model), as isolated single letters. Evaluated only on held-out forms of the training dataset, not on other people's handwriting or photos. |
 | Words, sentences, full lines | Not supported (one isolated letter per image) |
-| Model training and evaluation | Done (see [Evaluation Results](#evaluation-results)) |
-| Streamlit web app | Implemented in `app.py` |
+| Automatic detection of printed vs handwritten | Not implemented. You choose the mode in the app. |
+| Model training and evaluation | Done for both models (see [Evaluation Results](#evaluation-results)) |
+| Streamlit web app with a mode selector | Implemented in `app.py` |
 
-The model always answers with one of its 32 known letters, even when the image is handwritten, blank-looking, rotated or contains several characters. See [Limitations](#limitations).
+Each model always answers with one of its 32 known letters, even for images it was not made for (for example handwriting sent to the printed model). See [Limitations](#limitations).
 
 ## Features
 
 Everything listed here is implemented in the current code.
 
+- A **recognition mode** selector in the app sidebar: Printed Persian Characters or Handwritten Persian Characters. Each mode loads its own trained model.
 - Upload an image (PNG, JPG, JPEG or BMP) and preview it
 - Prediction shown as the Persian letter (right-to-left), its Latin name (for example `alef`) and its Unicode code point (for example `U+0627`)
 - Confidence score as a percentage, plus the top 3 predictions
 - A view of the cropped, normalized image that is actually given to the model
-- Automatic preprocessing: converts to grayscale, detects dark-on-light or light-on-dark, crops to the character, pads to a square without stretching, resizes to 224x224
-- Clear error messages for unreadable files, too-small or too-large images, and blank images
+- Automatic preprocessing (shared by both modes): converts to grayscale, detects dark-on-light or light-on-dark, crops to the character, pads to a square without stretching, resizes to 224x224
+- Clear error messages for unreadable files, too-small or too-large images, and blank images, and a clear message if the handwritten model file is missing (printed mode keeps working)
 - Warnings for low confidence (below 70%, a simple untuned threshold) and for characters touching the image border
 - A "Reset" button to clear the result and upload another image
-- Command-line prediction and a self-test in `src/predict.py`
+- Command-line prediction for both models (`src/predict.py`, `src/predict_hw.py`)
 
 ## Technology Stack
 
@@ -65,59 +68,84 @@ Everything listed here is implemented in the current code.
 ## Project Structure
 
 ```
-app.py                      Streamlit web application (run this)
-.streamlit/config.toml      Optional Streamlit theme setting
+app.py                         Streamlit web application (run this)
+.streamlit/config.toml         Optional Streamlit theme setting
 src/
-  predict.py                Loads the model and predicts one image
-  preprocess.py             Validation, binarization, cropping, resizing
-  model.py                  MobileNetV3 Small with a 32-class output layer
-  labels.py                 The 32 letters: index, Persian character, Latin name
-  augment.py                Training-time image augmentation
-  prepare_data.py           Cleans the dataset, removes duplicates, makes the splits
-  train.py                  Model training
-  evaluate.py               Final evaluation on the test split
-  (other helper scripts)    inspect_dataset*.py, review_drops.py, flag_artifacts.py, ...
+  labels.py                    The 32 letters: index, Persian character, Latin name (shared by both models)
+  preprocess.py                Validation, binarization, cropping, resizing (shared by both models)
+  model.py                     MobileNetV3 Small with a 32-class output layer (shared)
+  augment.py                   Training-time image augmentation (shared)
+  predict.py                   Loads a model and predicts one image (printed model by default)
+  --- printed model ---
+  prepare_data.py              Cleans the printed dataset, removes duplicates, makes the splits
+  train.py                     Printed model training
+  evaluate.py                  Printed model evaluation on the test split
+  --- handwritten model ---
+  labels_hw.py                 Maps the handwritten folders class_01 ... class_32 to the labels
+  prepare_data_hw.py           Cleans the handwritten dataset and splits it by form
+  train_hw.py                  Handwritten model training
+  evaluate_hw.py               Handwritten model evaluation on the test forms
+  predict_hw.py                Loads the handwritten model and predicts one image
+  inspect_handwritten.py       Read-only dataset check (counts, sizes, contact sheet)
+  inspect_forms_hw.py          Read-only check of the form numbers in the file names
+  (other helper scripts)       inspect_dataset*.py, review_drops.py, flag_artifacts.py, ...
 models/
-  mobilenetv3_small_best.pt Trained model (needed to run the app)
-  model_config.json         Readable copy of the model settings (not loaded by the app)
-reports/                    Evaluation results, confusion matrix, training curves
+  mobilenetv3_small_best.pt                  Printed model (needed for printed mode)
+  handwritten_mobilenetv3_small_best.pt      Handwritten model (needed for handwritten mode)
+  model_config.json                          Readable summary of the printed model (not loaded by the app)
+reports/                       Evaluation outputs, confusion matrices, training curves
+                               (hw_* files belong to the handwritten model)
 dataset/
-  manifest.csv              One row per unique image: class, source, split
-  processed/                Cached training arrays and logs (large, not for GitHub)
-tests/                      Unit tests for the data preparation
+  manifest.csv                 Printed dataset: one row per unique image, with its split
+  manifest_hw.csv              Handwritten dataset: one row per unique image, with its split and form
+  processed/                   Cached training arrays and logs (large, not for GitHub)
+tests/                         Unit tests for the printed data preparation
 ```
 
-## Dataset
+## Datasets
 
-- **Classes:** 32, one for each Persian letter. The class list is defined in `src/labels.py`:
+Neither image dataset is stored in this repository. Running the app does not need either dataset. Both models use the same 32 classes in the same order, defined in `src/labels.py`:
 
-  ا ب پ ت ث ج چ ح خ د ذ ر ز ژ س ش ص ض ط ظ ع غ ف ق ک گ ل م ن و ه ی
+ا ب پ ت ث ج چ ح خ د ذ ر ز ژ س ش ص ض ط ظ ع غ ف ق ک گ ل م ن و ه ی
 
-- **Style:** printed / digital only (every row in `manifest.csv` has style `printed`).
-- **Sources:** two merged collections, named `ds101` and `alpha` in `manifest.csv`.
-- **Preparation** (`src/prepare_data.py`):
-  1. Scan the class folders `01_alef` to `32_ye`.
-  2. Compute a small "look-alike signature" for each image.
-  3. Remove duplicates inside a class, images whose look-alike appears under two different classes, blank images, and mislabeled wide "word" images.
-  4. Split the remaining unique images per class into train, validation and test.
-- **Size after cleaning:** 10,638 unique images, split into 7,448 train, 1,595 validation and 1,595 test. 49 images are flagged as glitches in the manifest; 6 of them are in the test split and are left out of evaluation.
-- **Persian letters:** kaf (U+06A9) and yeh (U+06CC) are used, not the Arabic versions U+0643 and U+064A.
-- **The images are not stored in this repository.** `manifest.csv` records the file paths from the machine where the data was prepared. To retrain or re-evaluate you need your own copy of the images; `prepare_data.py --root` and `evaluate.py --data-root` take the folder location. **Running the app does not need the dataset.**
+Persian kaf (U+06A9) and yeh (U+06CC) are used, not the Arabic code points U+0643 and U+064A.
 
-> **TODO:** add the dataset names, links, licenses and citations for the two sources (`ds101` and `alpha`).
+### Printed dataset
+
+- 32 classes, printed / digital style only
+- Built from two merged collections (named `ds101` and `alpha` in `manifest.csv`)
+- `src/prepare_data.py` removes duplicates inside a class, images whose look-alike appears under two different classes, blank images, and mislabeled wide "word" images
+- After cleaning: **10,638 unique images**, split per class into **7,448 train / 1,595 validation / 1,595 test**. 49 images are flagged as glitches in the manifest; 6 of them are in the test split and are left out of evaluation.
+- The split is by image, not by font (the data has no font or writer information).
+
+### Handwritten dataset
+
+- 32 classes, one folder per letter: `class_01` ... `class_32`. `class_NN` is the letter with index `NN-1` in `labels.py` (`class_01` = alef ... `class_32` = ye). This was checked by eye on a contact sheet with 8 samples per folder.
+- **31,999 images**, PNG, grayscale, 64x64 pixels, tightly cropped, dark strokes on a light background. About 1,000 per class (999 for `class_29`), so the classes are balanced.
+- File names look like `class_02_f03_s0150.png`: class number, **form number** (`f01` ... `f10`, about 3,200 images each, 100 per letter per form) and a running sample number. The form numbers show different handwriting sessions (pen thickness, size and slant change between forms). The dataset documentation was not available, so we assume one form is one writer or writing session.
+- `src/prepare_data_hw.py` removes exact duplicates (2 found; 31,997 images kept). It drops nothing else on this dataset.
+- **Split by form**, so the test set contains handwriting sessions the model never saw in training: train = forms 1, 3, 4, 5, 7, 8, 10 (22,398 images), validation = form 6 (3,200), test = forms 2 and 9 (6,399). The form assignment uses a fixed random seed and can be changed with `--val-forms` and `--test-forms`.
+
+> **TODO:** add the dataset names, links, licenses and citations for the printed sources (`ds101`, `alpha`) and for the handwritten dataset (the folder was called `dataset_cropped`).
+
+Both manifests store the **absolute image paths of the computer where they were created**. On another computer, re-run the preparation script on your own copy of the images (see [Training and Evaluation Commands](#training-and-evaluation-commands)).
 
 ## Model Architecture
 
-- **Network:** MobileNetV3 Small from torchvision, starting from ImageNet weights.
-- **Output layer:** the last layer is replaced by a linear layer with 32 outputs (`classifier[3] = Linear(1024, 32)`).
+Both models use the same architecture and the same preprocessing:
+
+- **Network:** MobileNetV3 Small from torchvision, starting from ImageNet weights, with the last layer replaced by a linear layer with 32 outputs.
 - **Input:** 224x224 image, three channels, normalized with ImageNet mean and standard deviation.
-- **Training:** stage 1 trains only the new output layer (3 epochs); stage 2 fine-tunes from feature block 8 onward (up to 25 epochs, early stopping, best epoch chosen on the validation split). AdamW, OneCycle learning rate, cross-entropy with label smoothing 0.05 and class weights, small random rotation, zoom, shear and shift as augmentation. Seed 42.
+- **Training recipe:** stage 1 trains only the new output layer (3 epochs); stage 2 fine-tunes from feature block 8 onward (up to 25 epochs, early stopping after 7 epochs without validation improvement). AdamW, OneCycle learning rate, cross-entropy with label smoothing 0.05 and class weights, GPU augmentation (small rotation, zoom, shear, shift), seed 42. The best epoch is chosen on the validation split.
+- **Handwritten model:** trained from ImageNet weights, **not** from the printed model. Its best epoch was epoch 19 (validation accuracy 98.44%); training stopped early at epoch 23.
 - **Prediction:** the model gives 32 scores; softmax turns them into probabilities. The top probability is the confidence shown in the app.
+- The class mapping is stored inside each checkpoint and is checked against `src/labels.py` when a model loads. If they differ, loading stops with an error.
 
 ## Installation Requirements
 
 - **Python:** the project was developed with Python 3.12 (this is inferred from the cached files in the project). Python 3.12 is the safest choice. *TODO: confirm the exact version the author used.*
-- **Operating system:** commands below are for Windows with VS Code. A GPU is not required; the app runs on CPU.
+- **Operating system:** commands below are for Windows with VS Code. Running the app does not need a GPU. Training was done on an NVIDIA GPU (RTX 3050 Laptop); training on a CPU is possible but much slower.
+- **Memory for handwritten training:** about 1.3 GB of RAM for the cached images.
 - **Packages:** `torch`, `torchvision`, `pillow`, `numpy`, `opencv-python`, `pandas`, `streamlit`. For training, evaluation and the data scripts also: `scikit-learn`, `matplotlib`, `seaborn`, `tqdm`.
 - The project has no `requirements.txt` yet. *TODO: the author should run `pip freeze > requirements.txt` in the working environment and commit the file, so teammates get the same versions.*
 
@@ -158,16 +186,18 @@ In VS Code, press **Ctrl+Shift+P**, choose **Python: Select Interpreter**, and p
 
 ## Model Checkpoint Setup
 
-The app needs the trained model file:
+The app needs one trained model file for each mode:
 
-```
-models\mobilenetv3_small_best.pt
-```
+| Mode | File that must exist |
+|---|---|
+| Printed | `models\mobilenetv3_small_best.pt` |
+| Handwritten | `models\handwritten_mobilenetv3_small_best.pt` |
 
-- The class names and the Persian letter for each class are stored **inside** this file. When the model loads, the code checks them against `src/labels.py`, so both must be present and must match. If they differ, loading stops with an error.
-- `models\model_config.json` is only a readable summary. The app does not load it.
-- The file is about 6 MB, which is small enough for a normal GitHub repository. If it is not in your copy of the repository, **ask the teammate who trained the model to share it** (for example by a shared drive) and place it at the path above. There is no public download link for this project.
-- You do not need to retrain. Training (`src/train.py`) needs the full image dataset and takes much longer.
+- The class names and the Persian letter for each class are stored **inside** each file. When a model loads, the code checks them against `src/labels.py`, so both must be present and must match.
+- `models\model_config.json` is only a readable summary of the printed model. The app does not load it.
+- If a model file is not in your copy of the repository, **ask the teammate who trained it to share it** (for example by a shared drive) and place it at the path above. There is no public download link for this project.
+- If only the printed file is present, the app still works in printed mode and shows a clear message in handwritten mode.
+- You do not need to retrain. Training needs the image datasets (see [Training and Evaluation Commands](#training-and-evaluation-commands)).
 
 ## How to Run the Application
 
@@ -181,37 +211,38 @@ This starts a local web server and normally opens your browser at http://localho
 
 ## How to Make Predictions
 
-1. Click **Browse files** (or drag an image in) and choose a PNG, JPG, JPEG or BMP file with **one** printed Persian letter.
-2. Check the preview.
-3. Click **Recognize Character**.
-4. Read the result:
+1. In the **sidebar**, choose the **recognition mode** that matches your image: *Printed Persian Characters* or *Handwritten Persian Characters*. (If the sidebar is hidden, open it with the small arrow at the top left.)
+2. Click **Browse files** (or drag an image in) and choose a PNG, JPG, JPEG or BMP file with **one** letter.
+3. Check the preview.
+4. Click **Recognize Character**.
+5. Read the result:
    - **Large letter:** the predicted Persian character.
    - **Label chip:** its Latin name, for example `be` or `shin`.
    - **Code chip:** its Unicode code point.
    - **Confidence bar:** the model's probability for its top answer, as a percentage. The bar turns amber below 70%.
-5. Open **Top 3 predictions and model input** to see the next best guesses and the cropped image the model used.
-6. Click **Reset** to clear everything and upload another image.
+6. Open **Top 3 predictions and model input** to see the next best guesses and the cropped image the model used.
+7. Click **Reset** to clear everything and upload another image. Switching mode also clears the previous result.
 
-**How to read the confidence:** it is the model's own probability, not a measured accuracy. Wrong answers can still show high confidence, and unsuitable images (handwriting, several letters, rotated letters) can also get a confident answer. Use it as a hint, not as proof.
+**How to read the confidence:** it is the model's own probability, not a measured accuracy. Wrong answers can still show high confidence (in the handwritten evaluation, many mistakes were between look-alike letters), and unsuitable images can also get a confident answer. Use it as a hint, not as proof.
 
-**Best input:** a clear, dark letter on a plain light background, one letter only, reasonably centered, not touching the edge, at least 16x16 pixels.
+**Best input:** one clear letter, dark on a plain light background, centered, not touching the edge, at least 16x16 pixels. For handwriting, write one letter with a dark pen on plain paper and crop the photo tightly around it.
 
 ## Example Usage
 
 Using the web app:
 
 1. Run `streamlit run app.py`.
-2. Upload a screenshot of a single printed letter, for example ب.
-3. Click **Recognize Character**.
-4. The app shows the letter ب, the label `be`, the code `U+0628` and a confidence percentage.
+2. In the sidebar choose *Printed Persian Characters* and upload a screenshot of a single printed letter, for example ب. The app shows the letter ب, the label `be`, the code `U+0628` and a confidence percentage.
+3. Switch to *Handwritten Persian Characters* and upload a cropped image of one handwritten letter.
 
 Using the command line (from the project root, with the virtual environment active):
 
 ```
-python src\predict.py path\to\image.png
+python src\predict.py path\to\printed_letter.png
+python src\predict_hw.py path\to\handwritten_letter.png
 ```
 
-This prints the prediction for your own image. You can pass several image paths. To check that the saved model loads and works on test images from the dataset (this needs the dataset images on your computer):
+Each prints the prediction for your own image (several paths can be given). To check that the printed model loads and works on test images from the printed dataset (this needs the printed dataset images on your computer):
 
 ```
 python src\predict.py --selftest
@@ -223,15 +254,66 @@ From your own Python code:
 import sys
 sys.path.insert(0, "src")
 from predict import load_predictor
+from predict_hw import load_handwritten_predictor
 
-predictor = load_predictor()
-result = predictor.predict("path/to/image.png")   # path, PIL image or NumPy array
+printed = load_predictor()
+handwritten = load_handwritten_predictor()
+result = handwritten.predict("path/to/image.png")   # path, PIL image or NumPy array
 print(result["char"], result["label"], result["confidence"])
+```
+
+## Training and Evaluation Commands
+
+Only needed if you want to retrain or re-evaluate. Run them from the project root with the virtual environment active. Evaluate **once**, after training; do not tune the model on the test split.
+
+**Handwritten model** (the folder you pass must directly contain `class_01` ... `class_32`):
+
+```
+python src\prepare_data_hw.py --root "<path to the folder containing class_01 ... class_32>"
+python src\train_hw.py --smoke
+python src\train_hw.py
+python src\evaluate_hw.py
+```
+
+- `prepare_data_hw.py` writes `dataset\manifest_hw.csv` and two preview images in `reports\` (`hw_preview_crops.png`, `hw_preview_extremes.png`) so you can check the processed crops by eye.
+- `train_hw.py --smoke` is a 1-2 minute pipeline check; it saves no model. The full run saves `models\handwritten_mobilenetv3_small_best.pt` and refuses to overwrite an existing one unless you add `--overwrite`. It cannot write to the printed model's path.
+- `evaluate_hw.py` writes `reports\hw_eval_*` files.
+
+**Printed model** (see the first lines of each script for details; the printed dataset folders are `01_alef` ... `32_ye`):
+
+```
+python src\prepare_data.py --root "<path to final_merged_dataset>"
+python src\mark_glitch.py
+python src\train.py
+python src\evaluate.py
 ```
 
 ## Evaluation Results
 
-These results come from the held-out test split, evaluated once after training (file `reports/eval_summary.json`):
+All numbers below come from the evaluation files in `reports/` and the training logs. Both evaluations use a held-out test split that was not used for training or for choosing the best epoch.
+
+### Handwritten model
+
+Test split = forms 2 and 9 of the handwritten dataset (`reports/hw_eval_*`):
+
+| Metric | Value |
+|---|---|
+| Test images | 6,399 |
+| Accuracy | 98.59% |
+| Macro F1-score | 0.9859 |
+| Accuracy on form 2 (3,200 images) | 98.25% |
+| Accuracy on form 9 (3,199 images) | 98.94% |
+| Best validation accuracy (form 6, epoch 19) | 98.44% |
+
+- Weakest letters by F1-score: `jim` (0.949), `kaf` (0.962), `he_jimi` (0.966), `be` (0.967), `che` (0.968).
+- Most frequent mistakes (true -> predicted): `jim` -> `che` (8), `zhe` -> `ze` (8), `jim` -> `he_jimi` (7), `be` -> `pe` (7), `se` -> `te` (5), `khe` -> `he_jimi` (5).
+- Looking through a random sample of 40 mistakes (`reports/hw_eval_misclassified.png`), most were between letters that differ only in the number or position of dots. Some of these samples show merged dots or look like another letter, so a part of the remaining error is probably unclear or mislabeled data. This was a visual impression from one sample, not a systematic check.
+
+**What these numbers mean:** the test forms come from the same collection as the training forms, and the dataset does not say whether two forms were written by the same person. The numbers show how well the model handles unseen forms of this collection. They do **not** show how well it handles other people's handwriting, different pens and paper, or phone photos. *TODO: add results from your own handwriting tests, if you run them.*
+
+### Printed model
+
+Test split of the printed dataset (`reports/eval_summary.json`):
 
 | Metric | Value |
 |---|---|
@@ -242,22 +324,24 @@ These results come from the held-out test split, evaluated once after training (
 | Mean confidence, correct predictions | 93.4% |
 | Mean confidence, wrong predictions | 56.7% |
 
-Per-class scores, the confusion matrix and misclassified examples are in the `reports/` folder. Median prediction time was about 14.8 ms per image on a GPU (measured on 300 images; CPU time was not measured).
+Median prediction time was about 14.8 ms per image on a GPU, end to end (measured on 300 images; CPU time was not measured). The printed split is by image, not by font, so accuracy on fonts the model has never seen is probably lower than shown.
 
-**Read these numbers carefully:** the dataset has no font or writer information, so the split is by unique image, not by font. Accuracy on fonts the model has never seen is probably lower. The robustness tests (blurry, rotated, other fonts, several letters, handwriting) are not part of these numbers.
-
-> **TODO:** if you run the manual robustness tests, add what you observed here.
+Per-class scores, confusion matrices and misclassified examples for both models are in `reports/`.
 
 ## Limitations
 
-- **Printed / digital characters only.** Handwriting is not supported.
-- **One isolated letter per image.** It does not read words or sentences.
+- **Pick the right mode.** The printed model was trained on printed letters only and the handwritten model on handwritten letters only. Neither is expected to work well on the other kind of image, and there is no automatic detection.
+- **One isolated letter per image.** Neither model reads words or sentences.
 - **Supported files:** PNG, JPG, JPEG, BMP. Image sides must be between 16 and 8000 pixels. Blank images are rejected with an error.
-- **It always picks one of the 32 letters.** This includes handwriting, noise, rotated letters, several letters, and symbols that are not Persian letters.
-- **Confidence is not reliable proof.** The 70% warning threshold is a simple cut-off that was not tuned or validated.
-- **Optimistic test score** because the split is not by font (see above).
-- **Rotation and blur** were not evaluated systematically.
-- **Letter shapes:** the model recognizes the 32 isolated letters, not the connected forms letters take inside words.
+- **Always an answer.** Each model always picks one of its 32 classes, including for blank-looking, noisy, rotated or multi-letter images and for symbols that are not Persian letters.
+- **Confidence is not proof.** It is the softmax probability of the top class. The 70% warning threshold is a simple cut-off that was not tuned or validated.
+- **Handwriting:**
+  - The handwritten model was trained on tightly cropped 64x64 images from one dataset (10 forms). Very different handwriting styles, cluttered backgrounds and uncropped photos were not tested.
+  - Look-alike letters that differ only by dots (for example ب پ ت ث, ج چ ح خ, ر ز ژ, د ذ) are the most common mistakes, and merged or missing dots make them harder.
+  - Thresholding during preprocessing makes strokes a bit heavier and can join nearby dots.
+- **Printed model:** the test split is by image, not by font, so the test score is likely optimistic for unseen fonts.
+- **Rotation and blur** were not evaluated systematically for either model.
+- **Letter shapes:** both models recognize the 32 isolated letters, not the connected forms letters take inside words.
 
 ## Troubleshooting
 
@@ -266,21 +350,25 @@ Per-class scores, the confusion matrix and misclassified examples are in the `re
 | `'streamlit' is not recognized` | The virtual environment is not active or Streamlit is not installed. Run `.venv\Scripts\activate`, then `pip install streamlit`. Or use `python -m streamlit run app.py`. |
 | `ModuleNotFoundError: No module named 'torch'` (or `cv2`, `PIL`, `pandas`) | A package is missing. Activate `.venv` and install it: `pip install torch torchvision`, `pip install opencv-python`, `pip install pillow`, `pip install pandas`. |
 | PowerShell says running scripts is disabled when activating `.venv` | Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, or use Command Prompt (`cmd`) instead. |
-| App shows "Model checkpoint not found" | `models\mobilenetv3_small_best.pt` is missing. See [Model Checkpoint Setup](#model-checkpoint-setup). |
+| Printed mode shows "Model checkpoint not found" | `models\mobilenetv3_small_best.pt` is missing. See [Model Checkpoint Setup](#model-checkpoint-setup). |
+| Handwritten mode says the handwritten model has not been trained | `models\handwritten_mobilenetv3_small_best.pt` is missing. Get the file from the teammate who trained it, or train it (see [Training and Evaluation Commands](#training-and-evaluation-commands)). Printed mode still works. |
 | "Could not load the model: Class mapping in checkpoint differs from src/labels.py" | `src/labels.py` was changed, or the model file is from a different version. Use the model file and `labels.py` from the same version. |
+| `ModuleNotFoundError: No module named 'predict_hw'` | The handwritten files are missing from `src\`. Make sure `labels_hw.py`, `prepare_data_hw.py`, `train_hw.py`, `evaluate_hw.py` and `predict_hw.py` are all in the `src` folder. |
 | `streamlit run app.py` says it cannot find `app.py` | You are in the wrong folder. Use `cd` to go to the project root, the folder that contains `app.py`. |
 | "Invalid image: Image appears blank" / "No character found" | The image has no visible letter, or the letter is too faint. Use a darker letter on a plain background. |
 | "Image size ... outside [16, 8000] px" | The image is too small or too large. Resize it. |
 | "This file could not be read as an image" | The file is damaged or is not really an image. Use a real PNG, JPG, JPEG or BMP. |
 | Port 8501 already in use | Another Streamlit app is running. Stop it, or use `streamlit run app.py --server.port 8502`. |
-| Data scripts fail with "file not found" for images | `manifest.csv` holds paths from the original computer. Pass your own image folder with `--data-root` (evaluate) or `--root` (prepare_data). |
+| `prepare_data_hw.py` says the root "only contains one folder" | The class folders are one level deeper. Use the path it prints after `--root`. |
+| `evaluate_hw.py` or `evaluate.py` says test images were not found | The manifests hold absolute paths from the computer where they were made. Re-run `prepare_data_hw.py` (or `prepare_data.py`) with the path to your own copy of the images. |
+| `train_hw.py` says the checkpoint already exists | This protects a finished model. Add `--overwrite` to replace it, or `--out <other path>`. |
 | Very slow first prediction | The model is loading for the first time. Later predictions are faster. |
 
 ## Preparing the Repository for GitHub
 
-- **Commit:** the source code (`app.py`, `src/`, `tests/`), `README.md`, `dataset/manifest.csv` (small), the model file `models/mobilenetv3_small_best.pt` (about 6 MB) and `models/model_config.json`, and the small files in `reports/`.
-- **Do not commit the image dataset or `dataset/processed/`.** The processed folder is about 468 MB, and GitHub rejects single files over 100 MB. Check the dataset's license and your project's privacy rules before sharing any images.
-- **Check `manifest.csv`:** it contains absolute paths from the author's computer, including a Windows user folder name. Decide whether to share it as is or replace the paths with relative ones.
+- **Commit:** the source code (`app.py`, `src/`, `tests/`), `README.md`, the two small manifests (`dataset/manifest.csv`, `dataset/manifest_hw.csv`), the model files in `models/`, and the small files in `reports/`. Check each model file's size first; GitHub rejects single files over 100 MB, and these models are expected to be small.
+- **Do not commit the image datasets or `dataset/processed/`.** The printed cache alone is about 468 MB, and the handwritten cache adds more. Check each dataset's license and your project's privacy rules before sharing any images.
+- **Check the manifests:** they contain absolute paths from the author's computer, including a Windows user folder name. Decide whether to share them as they are or replace the paths with relative ones.
 - Add a `.gitignore` before the first commit. A suggested starting point:
 
   ```
@@ -297,19 +385,16 @@ Per-class scores, the confusion matrix and misclassified examples are in the `re
 
 These are ideas, **not** completed features.
 
-- Handwritten character recognition (needs a handwritten dataset and retraining)
+- Test the handwritten model on new handwriting (other people, pens, paper, phone photos) and report the results honestly
+- Review the confidently wrong test samples for mislabeled data and clean the handwritten dataset
+- Handle dots better for handwriting (for example a gentler threshold, or a larger input for the dotted look-alike letters)
+- Stroke-thickness augmentation, and a split by known writer if writer information becomes available
+- Automatic detection of printed vs handwritten input
 - Better preprocessing for noisy backgrounds, photos and rotated letters
-- Broader testing: more fonts, blur, rotation and other conditions, with a split by font
 - Tuning the low-confidence warning, or adding a real "not a valid character" check
 - Recognizing several characters or whole words
 - A `requirements.txt` with pinned versions
 
-## Contributors
-
-| Name | Role |
-|---|---|
-| *TODO: name* | *TODO: role (for example model training, web app, documentation)* |
-| *TODO: name* | *TODO: role* |
 
 ## License
 
