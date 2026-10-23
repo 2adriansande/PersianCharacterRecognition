@@ -557,7 +557,7 @@ These are ideas, **not** completed features.
 | Alec Lacap | Backend Development and Model Integration |
 | Ella Marie Tiozon | Frontend Development and User Interface |
 | Adrienne Lalimarmo | Documentation and Presentation |
-| *TODO: name* | *TODO: role* |
+| Earl Daniel Pardilla | Data Collection and Research |
 
 ## License
 
