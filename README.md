@@ -532,8 +532,8 @@ These are ideas, **not** completed features.
 | Alec Lacap | Backend Development and Model Integration |
 | Ella Marie Tiozon | Frontend Development and User Interface |
 | Adrienne Lalimarmo | Documentation and Presentation |
-| *TODO: name* | *TODO: role* |
+
 
 ## License
 
-No license has been specified for this project. Until the team chooses one, all rights are reserved by the authors. Also check the licenses of the dataset sources before sharing images or trained models.
+All rights are reserved by the authors.
