@@ -375,7 +375,7 @@ All numbers below come from the evaluation files in `reports/` and the training 
 
 ### Combined model (printed + handwritten)
 
-Evaluated once on the same two test sets as the separate models (`reports/comb_eval_*`):
+Evaluated once on the same two test sets as the separate models, with `python src\evaluate_combined.py` (checkpoint: best epoch 24, validation accuracy 0.9858; results are saved in `reports/comb_eval_*`):
 
 | Test set | Images | Combined model: accuracy / macro F1 | Separate model: accuracy / macro F1 |
 |---|---|---|---|
@@ -384,8 +384,24 @@ Evaluated once on the same two test sets as the separate models (`reports/comb_e
 | Both together | 7,988 | 98.61% / 0.9861 | not applicable |
 
 - Best validation accuracy (epoch 24): 98.58% overall, 98.68% on the printed validation set, 98.53% on the handwritten validation set.
+- Roughly 22 of the 1,589 printed test images and 89 of the 6,399 handwritten test images were misclassified (calculated from the accuracies above, so they may be off by one).
+- **Training curves** (`reports/comb_training_curves.png`): validation accuracy rose quickly during the first 6 epochs (about 79% after epoch 1, about 96% after epoch 6) and then flattened at about 98.5% from roughly epoch 20, with no sign of the validation loss turning upward. The training loss shown there is higher than the validation loss because it is measured on augmented images with label smoothing, while validation images are neither augmented nor smoothed, so the two losses are not directly comparable. The brief bump around epoch 4 is when the second training stage starts and the backbone is unfrozen.
 - **What this means:** one combined model performed about as well as the two specialist models on these test sets. The printed difference is roughly 3 images out of 1,589 (slightly lower) and the handwritten difference is roughly 1 image out of 6,399 (slightly higher). Both are within normal sampling noise, so these results show neither an improvement nor a loss from combining the data or from the new augmentation.
-- Most frequent handwritten mistakes (true -> predicted): `be` -> `pe` (8), `jim` -> `he_jimi` (8), `che` -> `jim` (7), `khe` -> `he_jimi` (5), `se` -> `te` (5), `ayn` -> `ghayn` (4), `zhe` -> `ze` (4), `jim` -> `che` (4). These are the same dot-related look-alike pairs as in the handwritten model. Printed mistakes were rare, at most 2 per pair (`se` -> `te`, `he_jimi` -> `mim`).
+- Most frequent mistakes (true -> predicted, with counts):
+
+| Handwritten test forms | Printed test split |
+|---|---|
+| `be` -> `pe` (8) | `se` -> `te` (2) |
+| `jim` -> `he_jimi` (8) | `he_jimi` -> `mim` (2) |
+| `che` -> `jim` (7) | `ayn` -> `he_jimi` (1) |
+| `khe` -> `he_jimi` (5) | `ayn` -> `jim` (1) |
+| `se` -> `te` (5) | `che` -> `jim` (1) |
+| `ayn` -> `ghayn` (4) | `che` -> `he_jimi` (1) |
+| `zhe` -> `ze` (4) | `ghayn` -> `khe` (1) |
+| `jim` -> `che` (4) | `fe` -> `qaf` (1) |
+
+  The handwritten mistakes are the same dot-related look-alike pairs as in the handwritten model. Printed mistakes were rare, with no pair occurring more than twice.
+- Saved files in `reports/`: `comb_eval_summary.json`, `comb_eval_per_class.csv` (recall per class and domain), `comb_eval_top_confusions_printed.csv`, `comb_eval_top_confusions_handwritten.csv`, `comb_eval_confusion_matrix.png`, `comb_eval_predictions.csv`.
 - The same caveats apply: the handwritten test forms come from the same collection as the training forms, the printed split is by image and not by font, and neither test set contains other people's handwriting, other fonts or phone photos.
 
 ### Rotation robustness
@@ -532,8 +548,8 @@ These are ideas, **not** completed features.
 | Alec Lacap | Backend Development and Model Integration |
 | Ella Marie Tiozon | Frontend Development and User Interface |
 | Adrienne Lalimarmo | Documentation and Presentation |
-
+| Earl Daniel Pardilla | Data Collection and Research |
 
 ## License
 
-All rights are reserved by the authors.
+No license has been specified for this project. Until the team chooses one, all rights are reserved by the authors. Also check the licenses of the dataset sources before sharing images or trained models.
